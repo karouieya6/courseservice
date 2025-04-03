@@ -21,11 +21,13 @@ public class Course {
     @Column(name = "instructor_id")
     private long instructorId;
 
-    private String category;
+    @ManyToOne
+    @JoinColumn(name = "category_id", nullable = false) // Foreign key reference
+    private Category category;
 
     @Column(name = "created_at")
-    private LocalDateTime createdAt;
+    private LocalDateTime createdAt = LocalDateTime.now();
 
     @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    private LocalDateTime updatedAt = LocalDateTime.now();
 }

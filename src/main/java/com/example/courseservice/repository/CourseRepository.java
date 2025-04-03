@@ -2,7 +2,12 @@ package com.example.courseservice.repository;
 
 import com.example.courseservice.model.Course;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.stereotype.Repository;
 
-public interface CourseRepository extends JpaRepository<Course, Long> {
-    // Custom queries can be added here if needed
+import java.util.List;
+
+@Repository
+public interface CourseRepository extends JpaRepository<Course, Long>, JpaSpecificationExecutor<Course> {
+    List<Course> findByCategoryId(Long categoryId);
 }

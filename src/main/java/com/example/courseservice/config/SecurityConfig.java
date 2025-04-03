@@ -1,13 +1,11 @@
 package com.example.courseservice.config;
 
-import com.example.courseservice.config.JwtFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -27,11 +25,14 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable()) // Disable CSRF for API calls
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/courses/**").hasRole("INSTRUCTOR")
+                        .requestMatchers(HttpMethod.GET, "/api/courses").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/courses/category/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/courses/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/courses/create", "/api/categories").hasRole("INSTRUCTOR")
                         .requestMatchers(HttpMethod.PUT, "/api/courses/**").hasRole("INSTRUCTOR")
-                        .requestMatchers(HttpMethod.DELETE, "/api/courses/**").hasRole("INSTRUCTOR")// Allow GET, POST, PUT, DELETE
-                        .requestMatchers("/public/**").permitAll() // Public endpoints
-                        .anyRequest().authenticated() // Authenticate all other requests
+                        .requestMatchers(HttpMethod.DELETE, "/api/courses/**").hasRole("INSTRUCTOR")
+                        .requestMatchers("/public/**").permitAll()
+                        .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
