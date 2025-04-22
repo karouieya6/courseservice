@@ -13,6 +13,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,6 +22,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/courses")
@@ -28,13 +30,16 @@ import org.slf4j.LoggerFactory;
 public class CourseController {
     private final CourseService courseService;
     private static final Logger log = LoggerFactory.getLogger(CourseController.class);
+    private String getAuthenticatedEmail() {
+        return SecurityContextHolder.getContext().getAuthentication().getName();
+    }
 
     /**
      * ✅ Create a New Course (Only for INSTRUCTORS)
      */
     @PreAuthorize("hasAuthority('INSTRUCTOR')")
     @PostMapping("/create")
-    public ResponseEntity<CourseResponse> createCourse(@RequestBody CourseCreateRequest request) {
+    public ResponseEntity<CourseResponse> createCourse(@Valid @RequestBody CourseCreateRequest request) {
         try {
             if (request.getInstructorId() == null || request.getInstructorId() == 0) {
                 return ResponseEntity.badRequest().body(null); // or return a custom error message DTO
@@ -82,21 +87,25 @@ public class CourseController {
             @PathVariable Long id,
             @RequestBody CourseUpdateRequest request) {
 
-        CourseResponse updated = courseService.updateCourse(id, request);
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        CourseResponse updated = courseService.updateCourse(id, request, email);
         return ResponseEntity.ok(updated);
     }
+
 
 
     /**
      * ✅ Delete a Course (Only for INSTRUCTORS)
      */
-    @PreAuthorize("hasAuthority('INSTRUCTOR')")
-
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('INSTRUCTOR')")
     public ResponseEntity<Void> deleteCourse(@PathVariable Long id) {
-        courseService.deleteCourse(id);
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        courseService.deleteCourse(id, email);
         return ResponseEntity.noContent().build();
     }
+
+
     @GetMapping("/category/{categoryId}")
     public ResponseEntity<List<CourseResponse>> getCoursesByCategory(@PathVariable Long categoryId) {
         List<CourseResponse> courses = courseService.getCoursesByCategory(categoryId);

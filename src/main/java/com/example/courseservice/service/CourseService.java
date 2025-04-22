@@ -1,6 +1,7 @@
 package com.example.courseservice.service;
 
 import com.example.courseservice.CourseSpecification;
+import com.example.courseservice.client.UserClient;
 import com.example.courseservice.dto.CourseCreateRequest;
 import com.example.courseservice.dto.CourseResponse;
 import com.example.courseservice.dto.CourseUpdateRequest;
@@ -22,7 +23,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class CourseService {
     private final CategoryRepository categoryRepository;
-
+    private final UserClient userClient;
     private final CourseRepository courseRepository;
 
     public CourseResponse createCourse(CourseCreateRequest request) {
@@ -74,10 +75,25 @@ public class CourseService {
     }
 
 
-    public CourseResponse updateCourse(Long id, CourseUpdateRequest request) {
-        Course course = courseRepository.findById(id)
+    public CourseResponse updateCourse(Long courseId, CourseUpdateRequest request, String instructorEmail) {
+        System.out.println("📨 Instructor email from token: " + instructorEmail);
+
+        // 🔁 Get instructorId from UserService using Feign
+        Long instructorId = userClient.getUserIdByEmail(instructorEmail);
+        System.out.println("🧠 Instructor ID from UserService: " + instructorId);
+
+        // ✅ Load the course
+        Course course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new RuntimeException("Course not found"));
 
+        System.out.println("📚 Course owner ID: " + course.getInstructorId());
+
+        // 🔐 Ownership check
+        if (course.getInstructorId() != instructorId) {
+            throw new SecurityException("You are not allowed to update this course");
+        }
+
+        // ✅ Perform updates
         if (request.getTitle() != null) course.setTitle(request.getTitle());
         if (request.getDescription() != null) course.setDescription(request.getDescription());
         if (request.getInstructorId() != null) course.setInstructorId(request.getInstructorId());
@@ -89,12 +105,22 @@ public class CourseService {
         }
 
         Course saved = courseRepository.save(course);
-        return mapToResponse(saved); // ✅ Make sure this helper exists
+        return mapToResponse(saved);
     }
 
 
-    public void deleteCourse(Long id) {
-        courseRepository.deleteById(id);
+
+    public void deleteCourse(Long courseId, String instructorEmail) {
+        Course course = courseRepository.findById(courseId)
+                .orElseThrow(() -> new RuntimeException("Course not found"));
+
+        Long instructorId = userClient.getUserIdByEmail(instructorEmail);
+
+        if (course.getInstructorId() != instructorId) {
+            throw new SecurityException("You are not allowed to delete this course");
+        }
+
+        courseRepository.deleteById(courseId);
     }
 
     /**

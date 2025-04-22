@@ -16,9 +16,9 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class SecurityConfig {
 
-    private final JwtFilter jwtFilter;
+    private final JwtAuthFilter jwtFilter;
 
-    public SecurityConfig(JwtFilter jwtFilter) {
+    public SecurityConfig(JwtAuthFilter jwtFilter) {
         this.jwtFilter = jwtFilter;
     }
 
@@ -48,7 +48,8 @@ public class SecurityConfig {
                 registry.addMapping("/**")
                         .allowedOrigins("http://localhost:4200")
                         .allowedMethods("*")
-                        .allowedHeaders("*");
+                        .allowedHeaders("Authorization", "Content-Type", "X-Requested-With");
+
             }
         };
     }
