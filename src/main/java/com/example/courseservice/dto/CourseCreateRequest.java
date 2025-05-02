@@ -13,8 +13,16 @@ public class CourseCreateRequest {
 
     private String description;
 
-    @NotNull(message = "Instructor ID is required")
     private Long instructorId;
+
+    public Long getInstructorId() {
+        return instructorId;
+    }
+
+    public void setInstructorId(Long instructorId) {
+        this.instructorId = instructorId;
+    }
+
 
     @NotNull(message = "Category ID is required")
     private Long categoryId;

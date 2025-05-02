@@ -1,7 +1,7 @@
 package com.example.courseservice.service;
 
 import com.example.courseservice.CourseSpecification;
-import com.example.courseservice.client.UserClient;
+
 import com.example.courseservice.dto.CourseCreateRequest;
 import com.example.courseservice.dto.CourseResponse;
 import com.example.courseservice.dto.CourseUpdateRequest;
@@ -9,13 +9,24 @@ import com.example.courseservice.model.Category;
 import com.example.courseservice.model.Course;
 import com.example.courseservice.repository.CategoryRepository;
 import com.example.courseservice.repository.CourseRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,7 +34,8 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class CourseService {
     private final CategoryRepository categoryRepository;
-    private final UserClient userClient;
+    @Autowired
+    private HttpServletRequest request;
     private final CourseRepository courseRepository;
 
     public CourseResponse createCourse(CourseCreateRequest request) {
@@ -78,8 +90,8 @@ public class CourseService {
     public CourseResponse updateCourse(Long courseId, CourseUpdateRequest request, String instructorEmail) {
         System.out.println("📨 Instructor email from token: " + instructorEmail);
 
-        // 🔁 Get instructorId from UserService using Feign
-        Long instructorId = userClient.getUserIdByEmail(instructorEmail);
+        // ✅ Fetch instructor ID via API Gateway
+        Long instructorId = fetchInstructorIdFromUserService(instructorEmail);
         System.out.println("🧠 Instructor ID from UserService: " + instructorId);
 
         // ✅ Load the course
@@ -88,40 +100,45 @@ public class CourseService {
 
         System.out.println("📚 Course owner ID: " + course.getInstructorId());
 
-        // 🔐 Ownership check
-        if (course.getInstructorId() != instructorId) {
+        // 🔐 Check ownership
+        if (course.getInstructorId() != instructorId)
+        {
             throw new SecurityException("You are not allowed to update this course");
         }
 
-        // ✅ Perform updates
-        if (request.getTitle() != null) course.setTitle(request.getTitle());
-        if (request.getDescription() != null) course.setDescription(request.getDescription());
-        if (request.getInstructorId() != null) course.setInstructorId(request.getInstructorId());
+        // ✅ Apply updates
+        course.setTitle(request.getTitle());
+        course.setDescription(request.getDescription());
+        course.setCategory(categoryRepository.findById(request.getCategoryId())
+                .orElseThrow(() -> new RuntimeException("Category not found")));
+        course.setUpdatedAt(LocalDateTime.now());
 
-        if (request.getCategoryId() != null) {
-            Category category = categoryRepository.findById(request.getCategoryId())
-                    .orElseThrow(() -> new RuntimeException("Category not found"));
-            course.setCategory(category);
-        }
+        courseRepository.save(course);
 
-        Course saved = courseRepository.save(course);
-        return mapToResponse(saved);
+        return mapToResponse(course);
     }
+
 
 
 
     public void deleteCourse(Long courseId, String instructorEmail) {
+        // ✅ Fetch course
         Course course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new RuntimeException("Course not found"));
 
-        Long instructorId = userClient.getUserIdByEmail(instructorEmail);
+        // ✅ Fetch instructor ID via API Gateway
+        Long instructorId = fetchInstructorIdFromUserService(instructorEmail);
 
-        if (course.getInstructorId() != instructorId) {
+        // 🔐 Check ownership
+        if (course.getInstructorId() != instructorId){
+
             throw new SecurityException("You are not allowed to delete this course");
         }
 
+        // ✅ Delete the course
         courseRepository.deleteById(courseId);
     }
+
 
     /**
      * ✅ Get Courses by Category ID
@@ -136,6 +153,29 @@ public class CourseService {
         Specification<Course> spec = CourseSpecification.filterCourses(keyword, categoryId, instructorId);
         Page<Course> page = courseRepository.findAll(spec, pageable);
         return page.map(this::mapToResponse);
+    }
+    public Long fetchInstructorIdFromUserService(String email) {
+        String url = "http://localhost:8080/userservice/user/email/" + email;
+
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            String token = request.getHeader("Authorization");
+            headers.set("Authorization", token);
+
+            HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+            ResponseEntity<Long> response = new RestTemplate().exchange(
+                    url,
+                    HttpMethod.GET,
+                    entity,
+                    Long.class
+            );
+
+            return response.getBody();
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("Could not fetch instructor ID from user service");
+        }
     }
 
 

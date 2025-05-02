@@ -27,15 +27,26 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable()) // Disable CSRF for API calls
                 .authorizeHttpRequests(auth -> auth
+                        // Public access
                         .requestMatchers(HttpMethod.GET, "/api/courses").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/courses/category/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/courses/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/courses/create", "/api/categories").hasRole("INSTRUCTOR")
+
+                        // Course management
+                        .requestMatchers(HttpMethod.POST, "/api/courses/create").hasRole("INSTRUCTOR")
                         .requestMatchers(HttpMethod.PUT, "/api/courses/**").hasRole("INSTRUCTOR")
                         .requestMatchers(HttpMethod.DELETE, "/api/courses/**").hasRole("INSTRUCTOR")
+
+                        // ✅ Comments system
+                        .requestMatchers(HttpMethod.POST, "/api/comments").hasRole("STUDENT") // Add comment
+                        .requestMatchers(HttpMethod.GET, "/api/comments/**").hasAnyRole("STUDENT", "INSTRUCTOR", "ADMIN") // View comments
+                        .requestMatchers(HttpMethod.PUT, "/api/comments/*/reply").hasRole("INSTRUCTOR") // Reply to comment
+
+                        // Other
                         .requestMatchers("/public/**").permitAll()
                         .anyRequest().authenticated()
                 )
+
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

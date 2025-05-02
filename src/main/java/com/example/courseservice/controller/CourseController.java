@@ -4,8 +4,10 @@ import com.example.courseservice.dto.CourseCreateRequest;
 import com.example.courseservice.dto.CourseResponse;
 import com.example.courseservice.dto.CourseUpdateRequest;
 import com.example.courseservice.model.Course;
+import com.example.courseservice.repository.CourseRepository;
 import com.example.courseservice.service.CourseService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -28,6 +30,8 @@ import jakarta.validation.Valid;
 @RequestMapping("/api/courses")
 @RequiredArgsConstructor
 public class CourseController {
+    @Autowired
+    private CourseRepository courseRepository;
     private final CourseService courseService;
     private static final Logger log = LoggerFactory.getLogger(CourseController.class);
     private String getAuthenticatedEmail() {
@@ -37,23 +41,25 @@ public class CourseController {
     /**
      * ✅ Create a New Course (Only for INSTRUCTORS)
      */
-    @PreAuthorize("hasAuthority('INSTRUCTOR')")
+    @PreAuthorize("hasRole('INSTRUCTOR')")
     @PostMapping("/create")
     public ResponseEntity<CourseResponse> createCourse(@Valid @RequestBody CourseCreateRequest request) {
         try {
-            if (request.getInstructorId() == null || request.getInstructorId() == 0) {
-                return ResponseEntity.badRequest().body(null); // or return a custom error message DTO
-            }
+            String email = SecurityContextHolder.getContext().getAuthentication().getName();
+            Long instructorId = courseService.fetchInstructorIdFromUserService(email);
+            request.setInstructorId(instructorId); // Inject it manually
 
             CourseResponse created = courseService.createCourse(request);
             return ResponseEntity.status(HttpStatus.CREATED).body(created);
-
         } catch (Exception e) {
-            return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(null); // Optional: return a meaningful error object
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
+
+
+
+
 
 
     /**
@@ -124,6 +130,10 @@ public class CourseController {
         Pageable pageable = PageRequest.of(page, size, sortObj);
         Page<CourseResponse> courses = courseService.searchCourses(keyword, categoryId, instructorId, pageable);
         return ResponseEntity.ok(courses);
+    }
+    @GetMapping("/count")
+    public long countCourses() {
+        return courseRepository.count();
     }
 
 }

@@ -17,6 +17,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -52,19 +53,25 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
 
         // ✅ We take the first role (you can expand this to support multiple roles if needed)
-        String roleName = roles.get(0);
-        SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + roleName);
+        // ✅ Assign ALL roles
+        List<SimpleGrantedAuthority> authorities = roles.stream()
+                .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                .toList();
 
-        User userDetails = new User(username, "", Collections.singletonList(authority));
+        User userDetails = new User(username, "", authorities);
+
         UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                userDetails, null, userDetails.getAuthorities()
+                userDetails, null, authorities
         );
+
 
         SecurityContextHolder.getContext().setAuthentication(authToken);
 
         // ✅ Debug
+        // ✅ Debug (show all roles)
         System.out.println("🧠 Authenticated (CourseService): " + username);
-        System.out.println("🛡 Role: ROLE_" + roleName);
+        System.out.println("🛡 Roles: " + authorities);
+
 
         filterChain.doFilter(request, response);
     }
